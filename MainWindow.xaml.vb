@@ -98,15 +98,6 @@ Class MainWindow
         My.Settings.Save()
     End Sub
 
-    <System.Runtime.InteropServices.DllImport("user32.dll")>
-    Private Shared Function ShowWindow(
-        ByVal hWnd As System.IntPtr,
-        ByVal nCmdShow As Integer) As Integer
-    End Function
-    <System.Runtime.InteropServices.DllImport("user32.dll")>
-    Private Shared Function IsZoomed(hWnd As IntPtr) As Boolean
-    End Function
-
     Private Sub StartNewInstanceButton_Click(sender As Object, e As RoutedEventArgs) Handles StartNewInstanceButton.Click
         Try
             Dim ClientXMLPath As String = "META-INF\AIR\application.xml"
@@ -196,8 +187,13 @@ Class MainWindow
     End Function
 
     Function GetNextInstanceInt() As Integer
-        If Process.GetProcessesByName("Habbo").Count > 0 Then
-            My.Settings.LastInstance += 1
+        Dim HabboProcessCount As Integer = Process.GetProcessesByName("Habbo").Count
+        If HabboProcessCount > 0 Then
+            If HabboProcessCount > My.Settings.LastInstance + 1 Then
+                My.Settings.LastInstance = HabboProcessCount + 1
+            Else
+                My.Settings.LastInstance += 1
+            End If
         Else
             My.Settings.LastInstance = 0
         End If
