@@ -29,7 +29,7 @@ Class MainWindow
         End If
         StartNewInstanceButton.Content = AppTranslator.NewInstance(CurrentLanguageInt)
         UpdateProtocolButton()
-        FixWindowsSSL()
+        FixWindowsTLS()
         If CheckWritePermissions(GetClientPath) = False Then
             If UserIsAdmin() = False Then
                 RestartElevated()
@@ -152,13 +152,22 @@ Class MainWindow
         End Try
     End Sub
 
-    Public Sub FixWindowsSSL()
+    Public Sub FixWindowsTLS()
         Try
             Using key = Registry.CurrentUser.CreateSubKey("Software\Microsoft\Windows\CurrentVersion\Internet Settings")
                 key.SetValue("SecureProtocols", 2688)
             End Using
+            If UserIsAdmin() = True Then
+                Using key = Registry.LocalMachine.CreateSubKey("Software\Microsoft\Windows\CurrentVersion\Internet Settings")
+                    key.SetValue("SecureProtocols", 2688)
+                End Using
+                Using key = Registry.LocalMachine.CreateSubKey("SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client")
+                    key.SetValue("DisabledByDefault", 0)
+                    key.SetValue("Enabled", 1)
+                End Using
+            End If
         Catch
-            Console.WriteLine("Could not fix Windows SSL.")
+            Console.WriteLine("Could not fix Windows TLS.")
         End Try
     End Sub
 
