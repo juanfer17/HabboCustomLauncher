@@ -16,8 +16,6 @@ Class MainWindow
             CurrentLanguageInt = 2
         End If
         IO.Directory.SetCurrentDirectory(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location))
-        My.Settings.Reset()
-        My.Settings.Save()
         If (My.Settings.ClientVersion = GetClientVersion()) = False Then
             My.Settings.Reset()
             My.Settings.ClientVersion = GetClientVersion()
