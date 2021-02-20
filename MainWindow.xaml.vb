@@ -12,20 +12,34 @@ Class MainWindow
         If System.Globalization.CultureInfo.CurrentCulture.Name.ToLower.StartsWith("es") Then
             CurrentLanguageInt = 1
         End If
+        If System.Globalization.CultureInfo.CurrentCulture.Name.ToLower.StartsWith("pt") Then
+            CurrentLanguageInt = 2
+        End If
         IO.Directory.SetCurrentDirectory(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location))
-        Dim RenderModeHandled As Boolean = False
-        If My.Settings.RenderMode = "gpu" Then
-            RenderModeHandled = True
-            GPURenderButton.IsChecked = True
+        My.Settings.Reset()
+        My.Settings.Save()
+        If (My.Settings.ClientVersion = GetClientVersion()) = False Then
+            My.Settings.Reset()
+            My.Settings.ClientVersion = GetClientVersion()
+            My.Settings.Save()
+            If CheckHabboProtocol() = False Then
+                Dim Result As MessageBoxResult = MessageBox.Show(AppTranslator.ProtocolRegAdvice(CurrentLanguageInt), Me.Title, MessageBoxButton.YesNo, MessageBoxImage.Question)
+                If Result = MessageBoxResult.Yes Then
+                    If RegisterHabboProtocol() = True Then
+                        MsgBox(AppTranslator.ProtocolRegAdviceOK(CurrentLanguageInt), MsgBoxStyle.Information, Me.Title)
+                        Environment.Exit(0)
+                    End If
+                End If
+            End If
         End If
         If My.Settings.RenderMode = "cpu" Then
-            RenderModeHandled = True
             CPURenderButton.IsChecked = True
         End If
-        If RenderModeHandled = False Then
-            My.Settings.RenderMode = "direct"
-            My.Settings.Save()
-            DefaultRenderButton.IsChecked = True
+        If My.Settings.RenderMode = "direct" Then
+            DirectRenderButton.IsChecked = True
+        End If
+        If My.Settings.RenderMode = "gpu" Then
+            GPURenderButton.IsChecked = True
         End If
         StartNewInstanceButton.Content = AppTranslator.NewInstance(CurrentLanguageInt)
         UpdateProtocolButton()
@@ -50,16 +64,42 @@ Class MainWindow
         End Try
     End Function
 
+    Function GetClientVersion() As String
+        Try
+            Dim ClientXMLPath As String = GetClientPath() & "\META-INF\AIR\application.xml"
+            Dim OriginalClientXML = New XmlDocument()
+            OriginalClientXML.Load(ClientXMLPath)
+            Return OriginalClientXML("application")("versionLabel").InnerText
+        Catch
+            Return "null"
+        End Try
+    End Function
+
     Function GetClientPath() As String
-        Dim ProgramFilesAppPath As String = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) & "\Sulake\Habbo Launcher\HabboFlash"
+        Dim ProgramFilesAppPath As String = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) & "\Sulake\Habbo Launcher\HabboFlash"
         If IO.Directory.Exists("META-INF\AIR") Then
             Return Directory.GetCurrentDirectory
         End If
         If Directory.Exists(ProgramFilesAppPath & "\META-INF\AIR") Then
             Return ProgramFilesAppPath
         End If
+        If Directory.Exists(GetClientShortcutTarget() & "\META-INF\AIR") Then
+            Return GetClientShortcutTarget()
+        End If
         MsgBox(AppTranslator.ClientNotFound(CurrentLanguageInt), MsgBoxStyle.Critical, "Error")
         Environment.Exit(0)
+    End Function
+
+    Private Function GetClientShortcutTarget() As String
+        Try
+            Dim FilePath As String = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) & "\Microsoft\Windows\Start Menu\Programs\Sulake\Habbo\Habbo Launcher.lnk"
+            Dim FileContent As String = IO.File.ReadAllText(FilePath, Text.Encoding.UTF8)
+            FileContent = FileContent.Remove(FileContent.LastIndexOf("\HabboLauncher.exe"))
+            FileContent = FileContent.Remove(0, FileContent.LastIndexOf(":\") - 1)
+            Return FileContent & "\HabboFlash"
+        Catch
+            Return ""
+        End Try
     End Function
 
     Function UserIsAdmin() As Boolean
@@ -89,22 +129,19 @@ Class MainWindow
         My.Settings.Save()
     End Sub
 
+    Private Sub DirectRenderButton_Click(sender As Object, e As RoutedEventArgs) Handles DirectRenderButton.Click
+        My.Settings.RenderMode = "direct"
+        My.Settings.Save()
+    End Sub
+
     Private Sub CPURenderButton_Click(sender As Object, e As RoutedEventArgs) Handles CPURenderButton.Click
         My.Settings.RenderMode = "cpu"
         My.Settings.Save()
     End Sub
 
-    Private Sub DefaultRenderButton_Click(sender As Object, e As RoutedEventArgs) Handles DefaultRenderButton.Click
-        My.Settings.RenderMode = "direct"
-        My.Settings.Save()
-    End Sub
-
     Private Sub StartNewInstanceButton_Click(sender As Object, e As RoutedEventArgs) Handles StartNewInstanceButton.Click
         Try
-            Dim ClientXMLPath As String = "META-INF\AIR\application.xml"
-            If IO.File.Exists(ClientXMLPath) = False Then
-                ClientXMLPath = GetClientPath() & "\" & ClientXMLPath
-            End If
+            Dim ClientXMLPath As String = GetClientPath() & "\META-INF\AIR\application.xml"
             Dim OriginalClientXML = New XmlDocument()
             OriginalClientXML.Load(ClientXMLPath)
             OriginalClientXML("application")("initialWindow")("renderMode").InnerText = My.Settings.RenderMode
@@ -130,7 +167,7 @@ Class MainWindow
         End If
     End Sub
 
-    Public Sub RegisterHabboProtocol()
+    Public Function RegisterHabboProtocol() As Boolean
         Try
             Dim UriScheme = "habbo"
             Dim FriendlyName = "Habbo Custom Launcher"
@@ -147,24 +184,54 @@ Class MainWindow
                     commandKey.SetValue("", """" & applicationLocation & """ ""%1""")
                 End Using
             End Using
+            Return True
         Catch
             MsgBox(AppTranslator.ProtocolRegError(CurrentLanguageInt), MsgBoxStyle.Critical, "Error")
+            Return False
         End Try
-    End Sub
+    End Function
+
+    Public Function UnregisterHabboProtocol() As Boolean
+        Try
+            Dim UriScheme = "habbo"
+            Registry.CurrentUser.DeleteSubKeyTree("SOFTWARE\Classes\" & UriScheme)
+            Return True
+        Catch
+            MsgBox(AppTranslator.ProtocolUnregError(CurrentLanguageInt), MsgBoxStyle.Critical, "Error")
+            Return False
+        End Try
+    End Function
 
     Public Sub FixWindowsTLS()
         Try
             Using key = Registry.CurrentUser.CreateSubKey("Software\Microsoft\Windows\CurrentVersion\Internet Settings")
-                key.SetValue("SecureProtocols", 2688)
+                If key.GetValue("SecureProtocols") < 2048 Then 'johnou implementation
+                    key.SetValue("SecureProtocols", key.GetValue("SecureProtocols") + 2048)
+                End If
+                If String.IsNullOrEmpty(key.GetValue("DefaultSecureProtocols")) = False Then
+                    If key.GetValue("DefaultSecureProtocols") < 2048 Then
+                        key.SetValue("DefaultSecureProtocols", key.GetValue("DefaultSecureProtocols") + 2048)
+                    End If
+                End If
             End Using
-            If UserIsAdmin() = True Then
-                Using key = Registry.LocalMachine.CreateSubKey("Software\Microsoft\Windows\CurrentVersion\Internet Settings")
-                    key.SetValue("SecureProtocols", 2688)
-                End Using
-                Using key = Registry.LocalMachine.CreateSubKey("SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client")
-                    key.SetValue("DisabledByDefault", 0)
-                    key.SetValue("Enabled", 1)
-                End Using
+            Dim NeedExtraSteps As Boolean = False
+            Using key = Registry.LocalMachine.OpenSubKey("SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client")
+                If key Is Nothing = False Then
+                    If (key.GetValue("DisabledByDefault") = "1") Or (key.GetValue("Enabled") = "0") Then
+                        NeedExtraSteps = True
+                    End If
+                End If
+            End Using
+            If NeedExtraSteps = True Then
+                If UserIsAdmin() Then
+                    Using key = Registry.LocalMachine.CreateSubKey("SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client")
+                        key.SetValue("DisabledByDefault", 0)
+                        key.SetValue("Enabled", 1)
+                    End Using
+                Else
+                    MsgBox(AppTranslator.TLSFixAdminRightsError(CurrentLanguageInt), MsgBoxStyle.Critical, "Error")
+                    Environment.Exit(0)
+                End If
             End If
         Catch
             Console.WriteLine("Could not fix Windows TLS.")
@@ -197,17 +264,17 @@ Class MainWindow
         End Try
     End Function
 
-    Public Function UnregisterHabboProtocol() As Boolean
-        Try
-            Dim UriScheme = "habbo"
-            Registry.CurrentUser.DeleteSubKeyTree("SOFTWARE\Classes\" & UriScheme)
-        Catch
-            MsgBox(AppTranslator.ProtocolUnregError(CurrentLanguageInt), MsgBoxStyle.Critical, "Error")
-        End Try
-    End Function
-
     Function GetNextInstanceInt() As Integer
-        Dim HabboProcessCount As Integer = Process.GetProcessesByName("Habbo").Count
+        Dim HabboProcessCount As Integer = 0
+        For Each HabboProcess In Process.GetProcessesByName("Habbo")
+            Try
+                If Path.GetDirectoryName(HabboProcess.MainModule.FileName) = GetClientPath() Then
+                    HabboProcessCount += 1
+                End If
+            Catch
+                HabboProcessCount += 1
+            End Try
+        Next
         If HabboProcessCount > 0 Then
             If HabboProcessCount > My.Settings.LastInstance + 1 Then
                 My.Settings.LastInstance = HabboProcessCount + 1
@@ -231,12 +298,60 @@ Class MainWindow
     End Sub
 End Class
 Public Class AppTranslator
-    Public Shared ClientNotFound As String() = {"Habbo Client not found.", "Habbo Client no encontrado."}
-    Public Shared AdminRightsError As String() = {"You need administrator rights.", "Necesitas permisos de administrador."}
-    Public Shared ClientOpenError As String() = {"Could not open Habbo Client.", "No se pudo abrir Habbo Client."}
-    Public Shared ProtocolRegError As String() = {"Could not register protocol.", "No se pudo registrar el protocolo."}
-    Public Shared ProtocolUnregError As String() = {"Could not unregister protocol.", "No se pudo eliminar el protocolo."}
-    Public Shared RegisterProtocol As String() = {"Register Habbo Protocol", "Registrar Habbo Protocol"}
-    Public Shared UnregisterProtocol As String() = {"Register Habbo Protocol", "Eliminar Habbo Protocol"}
-    Public Shared NewInstance As String() = {"Start new instance", "Iniciar nueva instancia"}
+    '0=English 1=Spanish 2=Portuguese
+    Public Shared ClientNotFound As String() = {
+        "Habbo Client not found.",
+        "Habbo Client no encontrado.",
+        "Habbo Client não encontrado."
+    }
+    Public Shared AdminRightsError As String() = {
+        "You need administrator rights.",
+        "Necesitas permisos de administrador.",
+        "Você precisa de permissões de administrador."
+    }
+    Public Shared TLSFixAdminRightsError As String() = {
+        "You must run the program as an administrator to enable TLS 1.2 on your system.",
+        "Debes ejecutar el programa como administrador para habilitar TLS 1.2 en tu sistema.",
+        "Você deve executar o programa como administrador para ativar o TLS 1.2 em seu sistema."
+    }
+    Public Shared ClientOpenError As String() = {
+        "Could not open Habbo Client.",
+        "No se pudo abrir Habbo Client.",
+        "Habbo Client não pôde ser aberto."
+    }
+    Public Shared ProtocolRegError As String() = {
+        "Could not register protocol.",
+        "No se pudo registrar el protocolo.",
+        "O protocolo não pôde ser registrado."
+    }
+    Public Shared ProtocolUnregError As String() = {
+        "Could not unregister protocol.",
+        "No se pudo eliminar el protocolo.",
+        "O protocolo não pôde ser removido."
+    }
+    Public Shared RegisterProtocol As String() = {
+        "Register Habbo Protocol",
+        "Registrar Habbo Protocol",
+        "Registrar Habbo Protocol"
+    }
+    Public Shared UnregisterProtocol As String() = {
+        "Register Habbo Protocol",
+        "Eliminar Habbo Protocol",
+        "Remover Habbo Protocol"
+    }
+    Public Shared NewInstance As String() = {
+        "Start new instance",
+        "Iniciar nueva instancia",
+        "Iniciar nova instância"
+    }
+    Public Shared ProtocolRegAdvice As String() = {
+        "Do you want to register Habbo Protocol for easy access from the new Habbo web button?",
+        "Quieres registrar Habbo Protocol para poder acceder fácilmente desde el nuevo botón de la web de Habbo?",
+        "Deseja registrar o Habbo Protocol para poder acessar facilmente a partir do novo botão no site do Habbo?"
+    }
+    Public Shared ProtocolRegAdviceOK As String() = {
+        "Now you can access from the new Habbo web button without having to open this program." & vbNewLine & "You don't need to do anything else.",
+        "Ahora podrás acceder desde el nuevo botón de la web de Habbo sin necesidad de abrir este programa." & vbNewLine & "No necesitas hacer nada mas.",
+        "Agora podes aceder desde o novo botão da web do Habbo sem a necessidade de abrir este programa." & vbNewLine & "Você não precisa fazer mais nada."
+    }
 End Class

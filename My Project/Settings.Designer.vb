@@ -55,7 +55,7 @@ Partial Friend NotInheritable Class MySettings
     
     <Global.System.Configuration.UserScopedSettingAttribute(),  _
      Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
-     Global.System.Configuration.DefaultSettingValueAttribute("direct")>  _
+     Global.System.Configuration.DefaultSettingValueAttribute("cpu")>  _
     Public Property RenderMode() As String
         Get
             Return CType(Me("RenderMode"),String)
@@ -74,6 +74,18 @@ Partial Friend NotInheritable Class MySettings
         End Get
         Set
             Me("LastInstance") = value
+        End Set
+    End Property
+    
+    <Global.System.Configuration.UserScopedSettingAttribute(),  _
+     Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+     Global.System.Configuration.DefaultSettingValueAttribute("null")>  _
+    Public Property ClientVersion() As String
+        Get
+            Return CType(Me("ClientVersion"),String)
+        End Get
+        Set
+            Me("ClientVersion") = value
         End Set
     End Property
 End Class

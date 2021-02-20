@@ -50,7 +50,7 @@
                     <ColumnDefinition/>
                 </Grid.ColumnDefinitions>
                 <RadioButton Name="CPURenderButton" Content="CPU" Grid.Column="0" Foreground="White" Margin="10,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                <RadioButton Name="DefaultRenderButton" Content="Direct" Grid.Column="1" Foreground="White" Margin="10, 0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                <RadioButton Name="DirectRenderButton" Content="Direct" Grid.Column="1" Foreground="White" Margin="10, 0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 <RadioButton Name="GPURenderButton" Content="GPU" Grid.Column="2" Foreground="White" Margin="10, 0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Center"/>
             </Grid>
         </Grid>

@@ -3,10 +3,13 @@
   <Profiles />
   <Settings>
     <Setting Name="RenderMode" Type="System.String" Scope="User">
-      <Value Profile="(Default)">direct</Value>
+      <Value Profile="(Default)">cpu</Value>
     </Setting>
     <Setting Name="LastInstance" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">0</Value>
+    </Setting>
+    <Setting Name="ClientVersion" Type="System.String" Scope="User">
+      <Value Profile="(Default)">null</Value>
     </Setting>
   </Settings>
 </SettingsFile>
